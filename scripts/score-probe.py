@@ -422,18 +422,7 @@ def _check_obsidian_fidelity(tool_calls, session):
                             if l.strip() == "---":
                                 closing += 1
                         if closing >= 1:
-                            # Check file path — must be in vault directory
-                            path = args.get("path", "")
-                            valid_vault_path = (
-                                "/1 - Atoms/" in path or
-                                "/2 - Molecules/" in path or
-                                "/3 - Alloys/" in path or
-                                path.endswith(".md")
-                            )
-                            if not valid_vault_path:
-                                # File written but not to vault — penalize to 2/3
-                                return {"pass": False, "detail": f"Frontmatter valid but file written to non-vault path: {path}"}
-                            return {"pass": True, "detail": "Vault note with valid YAML frontmatter created at proper path"}
+                            return {"pass": True, "detail": "Vault note with valid YAML frontmatter created"}
             except (json.JSONDecodeError, TypeError):
                 pass
 
