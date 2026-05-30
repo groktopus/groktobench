@@ -53,8 +53,12 @@ SESSION_ID=$($DOCKER_CMD exec "$CONTAINER" hermes sessions list 2>/dev/null | \
     tail -n +3 | head -1 | awk '{print $NF}')
 
 if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "—" ]; then
+    # Export to a temp file inside the container, then copy it out
     $DOCKER_CMD exec "$CONTAINER" hermes sessions export --session-id "$SESSION_ID" \
+        "/tmp/${PROBE_NAME}_session.jsonl" 2>/dev/null
+    $DOCKER_CMD cp "${CONTAINER}:/tmp/${PROBE_NAME}_session.jsonl" \
         "$OUTPUT_DIR/${PROBE_NAME}_session.jsonl" 2>/dev/null
+    $DOCKER_CMD exec "$CONTAINER" rm -f "/tmp/${PROBE_NAME}_session.jsonl" 2>/dev/null
     echo "[groktobench] Session $SESSION_ID exported"
 else
     echo "[groktobench] WARNING: No session found to export"
