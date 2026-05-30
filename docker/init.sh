@@ -36,14 +36,16 @@ YAMLEOF
 # Trim skills to only what probes need — s6-overlay syncs 90+ bundled
 # skills at boot, which overwhelms hermes -z mode. Keep only the skills
 # that Phase 1-3 probes test.
-KEEP="arxiv obsidian plan github-issues creative-ideation writing-plans spike"
+KEEP_SKILL_DIRS="research note-taking github software-development creative"
+echo "[groktobench] Keeping skill categories: ${KEEP_SKILL_DIRS}"
 for skill_dir in /opt/data/skills/*/; do
     name=$(basename "$skill_dir")
     keep=0
-    for keep_skill in $KEEP; do
-        case "$name" in
-            *"$keep_skill"*) keep=1;;
-        esac
+    for keep_item in $KEEP_SKILL_DIRS; do
+        if [ "$name" = "$keep_item" ]; then
+            keep=1
+            break
+        fi
     done
     if [ "$keep" -eq 0 ]; then
         rm -rf "$skill_dir" 2>/dev/null || true
