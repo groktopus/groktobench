@@ -5,6 +5,14 @@
 #
 # Runs all 15 probes, scores each, and generates a diagnostic report.
 # The container must be running (docker compose up -d).
+#
+# Docker host abstraction:
+#   Set GROKTOBENCH_DOCKER to a command prefix for remote Docker access.
+#   Examples:
+#     export GROKTOBENCH_DOCKER="docker"                          # local (default)
+#     export GROKTOBENCH_DOCKER="ssh user@buildbox docker"         # remote via SSH
+#     export GROKTOBENCH_DOCKER="DOCKER_HOST=tcp://host:2376 docker"  # remote TCP
+# See run-probe.sh for full details.
 
 set -u
 

@@ -51,6 +51,22 @@ Before running Groktobench, make sure you have:
    hermes skill list | grep kanban
    ```
 
+4. **Docker access** (local or remote). By default, Groktobench uses the local `docker` CLI. For remote Docker hosts, set `GROKTOBENCH_DOCKER` to the appropriate command prefix:
+   ```bash
+   # Docker on a remote host via SSH
+   export GROKTOBENCH_DOCKER="ssh user@buildbox docker"
+
+   # Docker via TCP (DOCKER_HOST)
+   export GROKTOBENCH_DOCKER="DOCKER_HOST=tcp://host:2376 docker"
+
+   # Alternative container runtime (podman, etc.)
+   export GROKTOBENCH_DOCKER="podman"
+
+   # Default — local Docker
+   export GROKTOBENCH_DOCKER="docker"
+   ```
+   The same prefix is used for all `docker` commands — `exec`, `cp`, `logs`, etc. — so the evaluation scripts work identically regardless of where the container runs.
+
 4. **At least 8 GB of free disk space** for the Docker image and evaluation artifacts.
 
 ---

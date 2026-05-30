@@ -3,17 +3,28 @@
 #
 # Usage: ./run-probe.sh <container-name> <probe-file> [output-dir]
 #
-# Runs the probe prompt through hermes -z inside the Docker container,
+# Runs the probe prompt through hermes -z inside a Docker container,
 # then exports the session for scoring.
 #
-# Requires: docker, hermes (for session export)
-# The container must have been started with docker-compose.
+# Docker host abstraction:
+#   By default, uses the local `docker` CLI.
+#   Set GROKTOBENCH_DOCKER to a command prefix for remote Docker access.
+#   Examples:
+#     export GROKTOBENCH_DOCKER="docker"                          # local (default)
+#     export GROKTOBENCH_DOCKER="ssh user@buildbox docker"         # remote via SSH
+#     export GROKTOBENCH_DOCKER="DOCKER_HOST=tcp://host:2376 docker"  # remote TCP
+#     export GROKTOBENCH_DOCKER="podman"                           # alternative runtime
+#
+# Requires: docker (or configured equivalent), hermes (for session export)
 
 set -u
 
 CONTAINER="${1:?Usage: run-probe.sh <container> <probe-file> [output-dir]}"
 PROBE_FILE="${2:?Usage: run-probe.sh <container> <probe-file> [output-dir]}"
 OUTPUT_DIR="${3:-/tmp/groktobench}"
+
+# Docker command — configurable for remote hosts
+DOCKER_CMD="${GROKTOBENCH_DOCKER:-docker}"
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -28,8 +39,8 @@ fi
 
 echo "[groktobench] Running probe $PROBE_ID..."
 
-# Run the probe via docker exec hermes -z
-docker exec "$CONTAINER" hermes -z "$PROMPT" > "$OUTPUT_DIR/${PROBE_ID}_stdout.txt" 2>&1
+# Run the probe via hermes -z inside the container
+$DOCKER_CMD exec "$CONTAINER" hermes -z "$PROMPT" > "$OUTPUT_DIR/${PROBE_ID}_stdout.txt" 2>&1
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
@@ -38,16 +49,16 @@ fi
 
 # Find the most recent session and export it
 # The session list shows most recent first
-SESSION_ID=$(docker exec "$CONTAINER" hermes sessions list 2>/dev/null | \
+SESSION_ID=$($DOCKER_CMD exec "$CONTAINER" hermes sessions list 2>/dev/null | \
     grep -v "^Title\|^──\|^$" | head -1 | awk '{print $NF}')
 
 if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "—" ]; then
-    docker exec "$CONTAINER" hermes sessions export --session-id "$SESSION_ID" \
+    $DOCKER_CMD exec "$CONTAINER" hermes sessions export --session-id "$SESSION_ID" \
         "$OUTPUT_DIR/${PROBE_ID}_session.jsonl" 2>/dev/null
     echo "[groktobench] Session $SESSION_ID exported"
 else
     echo "[groktobench] WARNING: No session found to export"
 fi
 
-echo "[groktobench] Probe $PRINTF_COMPLETED"
+echo "[groktobench] Probe $PROBE_ID completed"
 echo "Output: $OUTPUT_DIR/${PROBE_ID}_session.jsonl"
