@@ -107,6 +107,8 @@ A full 3-phase run takes approximately **90 minutes** on a typical setup. Phases
 
 ## Quick Start
 
+### Local Docker (Docker CLI available on this machine)
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/groktopus/groktobench.git
@@ -140,6 +142,35 @@ hermes kanban create \
 # 8. Run the orchestrator
 hermes kanban orchestrate groktobench-eval
 ```
+
+### Remote Docker Host (Docker CLI on a different machine)
+
+If Docker is not available on this machine (e.g., the main agent runs on a laptop, but Docker lives on a build server), use the `deploy-and-run.sh` script. It SCPs the repo to the Docker host, runs the evaluation there, and retrieves the results. The main agent only needs SSH+SCP — no local Docker CLI required.
+
+```bash
+# 1. Clone the repo locally
+git clone https://github.com/groktopus/groktobench.git
+cd groktobench
+
+# 2. Set env vars (same as local — these get forwarded to the Docker host)
+export GROKTOBENCH_API_KEY=*** GROKTOBENCH_MODEL="your-model-name"
+
+# 3. Run deploy-and-run
+#    First arg: SSH target for Docker host
+#    Second arg: Docker container name
+./scripts/deploy-and-run.sh user@buildbox.local groktobench-run
+```
+
+The script handles the full lifecycle:
+1. Packages the repo into a tarball
+2. SCPs it to the Docker host
+3. Builds the Docker image
+4. Starts the container
+5. Runs all 15 probes
+6. SCPs results (sessions + scores + report) back to this machine
+7. Cleans up the remote temp directory
+
+Results land in `/tmp/groktobench-<timestamp>/` with the full report.
 
 ---
 
