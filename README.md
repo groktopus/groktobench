@@ -26,12 +26,21 @@ export GROKTOBENCH_API_KEY="sk-..."
 export GROKTOBENCH_MODEL="your-model-name"
 export GROKTOBENCH_BASE_URL="https://api.openai.com/v1"  # or your provider
 
-# 3. Start the clean-room Hermes container
-docker compose -f docker/docker-compose.yml up -d
+# 3. Build the Hermes Agent base image (required: Groktobench builds on top of this)
+git clone https://github.com/NousResearch/hermes-agent.git /tmp/hermes-agent
+docker build -t hermes-agent:latest /tmp/hermes-agent
 
-# 4. Run the evaluation via the Hermes skill
-hermes kanban boards create groktobench-$(date +%s)
-# ... then invoke the groktobench skill (see SKILL.md for full instructions)
+# 4. Build the Groktobench image
+docker build -t groktobench-hermes -f docker/Dockerfile .
+
+# 5. Start the clean-room Hermes container
+GROKTOBENCH_API_KEY=*** GROKTOBENCH_MODEL="your-model" docker compose -f docker/docker-compose.yml up -d
+
+# 6. Run the evaluation
+#    If Docker is local:
+./scripts/run-full-suite.sh groktobench
+#    If Docker is on a remote host:
+./scripts/deploy-and-run.sh user@host groktobench
 ```
 
 ## Scoring

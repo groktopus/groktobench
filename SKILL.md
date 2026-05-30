@@ -118,21 +118,25 @@ cd groktobench
 export GROKTOBENCH_API_KEY="sk-your-api-key-here"
 export GROKTOBENCH_MODEL="your-model-name"
 
-# 3. Build the clean-room Docker image
-docker build -t groktobench .
+# 3. Build the Hermes Agent base image (Groktobench builds on top of this)
+git clone https://github.com/NousResearch/hermes-agent.git /tmp/hermes-agent
+docker build -t hermes-agent:latest /tmp/hermes-agent
 
-# 4. Start the evaluation container
+# 4. Build the Groktobench image
+docker build -t groktobench-hermes -f docker/Dockerfile .
+
+# 5. Start the evaluation container
 docker run -d \
   --name groktobench-run \
   -e GROKTOBENCH_API_KEY \
   -e GROKTOBENCH_MODEL \
   -v "$(pwd)/output:/app/output" \
-  groktobench
+  groktobench-hermes
 
-# 5. Verify the container is running
+# 7. Verify the container is running
 docker logs groktobench-run --tail 20
 
-# 6. Create the kanban board for task orchestration
+# 8. Create the kanban board for task orchestration
 hermes kanban create \
   --name "groktobench-eval" \
   --description "Groktobench HARP Evaluation — $(date +%Y-%m-%d)"
@@ -164,11 +168,13 @@ export GROKTOBENCH_API_KEY=*** GROKTOBENCH_MODEL="your-model-name"
 The script handles the full lifecycle:
 1. Packages the repo into a tarball
 2. SCPs it to the Docker host
-3. Builds the Docker image
-4. Starts the container
-5. Runs all 15 probes
-6. SCPs results (sessions + scores + report) back to this machine
-7. Cleans up the remote temp directory
+3. Clones NousResearch/hermes-agent on the Docker host (if not cached)
+4. Builds the Hermes Agent base image from source
+5. Builds the Groktobench image on top
+6. Starts the container
+7. Runs all 15 probes
+8. SCPs results (sessions + scores + report) back to this machine
+9. Cleans up the remote temp directory
 
 Results land in `/tmp/groktobench-<timestamp>/` with the full report.
 

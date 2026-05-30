@@ -75,15 +75,31 @@ scp "$DEPLOY_ARCHIVE" "${DOCKER_HOST}:${REMOTE_DIR}/"
 ssh "$DOCKER_HOST" "tar xzf ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE) -C $REMOTE_DIR && rm ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE)"
 echo "      Deployed to $REMOTE_DIR"
 
-# --- Step 3: Build Docker image on remote host ---
-echo "[3/5] Building Docker image on $DOCKER_HOST..."
+# --- Step 3: Build Hermes Agent base image on remote host ---
+echo "[3/5] Building Hermes Agent base image on $DOCKER_HOST..."
+echo "      Cloning NousResearch/hermes-agent (if needed)..."
+ssh "$DOCKER_HOST" \
+    "if [ ! -d ${REMOTE_DIR}/hermes-agent ] || [ ! -f ${REMOTE_DIR}/hermes-agent/Dockerfile ]; then \
+         git clone --depth 1 https://github.com/NousResearch/hermes-agent.git ${REMOTE_DIR}/hermes-agent 2>&1 | tail -1; \
+     else \
+         echo 'Already cloned'; \
+     fi"
+echo "      Building hermes-agent image (this takes a few minutes)..."
+BUILD_OUTPUT=$(ssh "$DOCKER_HOST" \
+    "cd ${REMOTE_DIR}/hermes-agent && docker build -t hermes-agent:latest . 2>&1")
+echo "$BUILD_OUTPUT" | tail -3
+echo "      Hermes Agent base image built"
+
+# --- Step 4: Build Groktobench image on top ---
+echo "[4/5] Building Groktobench image..."
 ssh "$DOCKER_HOST" \
     "cd $REMOTE_DIR && \
-     docker build -t groktobench-hermes -f docker/Dockerfile ." 2>&1 | tail -5
-echo "      Build complete"
+     docker build -t groktobench-hermes -f docker/Dockerfile \
+       --build-arg BASE_IMAGE=hermes-agent:latest ." 2>&1 | tail -3
+echo "      Groktobench image built"
 
-# --- Step 4: Write env file and run the evaluation ---
-echo "[4/5] Running evaluation on $DOCKER_HOST..."
+# --- Step 5: Write env file and run the evaluation ---
+echo "[5/5] Running evaluation on $DOCKER_HOST..."
 echo "      Container: $CONTAINER_NAME"
 echo "      (this will take ~90 minutes)"
 echo ""
@@ -118,8 +134,8 @@ ssh "$DOCKER_HOST" \
      GROKTOBENCH_DOCKER='docker' \
      sh scripts/run-full-suite.sh $CONTAINER_NAME 2>&1"
 
-# --- Step 5: Retrieve results ---
-echo "[5/5] Retrieving results..."
+# --- Step 6: Retrieve results ---
+echo "[6/5] Retrieving results..."
 # Find the results directory on the remote host
 ssh "$DOCKER_HOST" \
     "latest=\$(ls -dt /tmp/groktobench-* 2>/dev/null | head -1) && \
