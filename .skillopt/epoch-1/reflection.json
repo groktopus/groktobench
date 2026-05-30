@@ -1,0 +1,62 @@
+{
+    "epoch": 1,
+    "rollout_count": 3,
+    "baseline_harp": 79.0,
+    "failure_patterns": [
+        {
+            "pattern": "Phase 1 fuzzy matching accepts partial skill name matches",
+            "frequency": "8 of 8 probes affected",
+            "severity": "high — makes Phase 1 trivially passable",
+            "tasks_affected": ["phase1-all"],
+            "suggested_fix_type": "modify",
+            "suggested_location": "_match_skill() in score-probe.py",
+            "suggested_change": "Require exact or prefix-match only. 'plan' should not match 'software-development/plan' unless the model loaded the full path. At minimum require category prefix or exact match."
+        },
+        {
+            "pattern": "Phase 1 has no penalty for wrong skills loaded before correct one",
+            "frequency": "8 of 8 probes",
+            "severity": "high",
+            "tasks_affected": ["phase1-all"],
+            "suggested_fix_type": "add",
+            "suggested_location": "score_phase1() in score-probe.py",
+            "suggested_change": "If any wrong skill_view() calls precede the correct one, deduct 0.2 per wrong call. A model that loads 3 wrong skills before the right one should score 0.4, not 1.0."
+        },
+        {
+            "pattern": "Phase 2 fidelity checks are keyword-based, not semantic",
+            "frequency": "4 of 5 probes affected",
+            "severity": "high",
+            "tasks_affected": ["P2-01", "P2-03", "P2-04", "P2-05"],
+            "suggested_fix_type": "replace",
+            "suggested_location": "check_skill_fidelity() functions in score-probe.py",
+            "suggested_change": "Replace keyword heuristics with stricter checks: (a) arxiv: using web_search in addition to or instead of mcp_arxiv is a fail, not a pass; (b) plan: require actual file write to .hermes/plans/ dir, not just text containing 'step'; (c) excalidraw: require parseable JSON with proper Excalidraw element schema; (d) github: check tool call arguments for 'gh issue' or API URL, not result_preview text."
+        },
+        {
+            "pattern": "Phase 3 chaining uses structural heuristics instead of content quality",
+            "frequency": "2 of 2 probes affected",
+            "severity": "medium",
+            "tasks_affected": ["P3-A", "P3-B"],
+            "suggested_fix_type": "replace",
+            "suggested_location": "score_phase3() in score-probe.py",
+            "suggested_change": "(a) Chain accuracy: require skills loaded IN ORDER, not just present; (b) Context preservation: check for actual cross-references between steps (e.g., step 2 references a result mentioned in step 1), not message count; (c) Completion quality: check for keyword overlap with the original task prompt, not output length."
+        },
+        {
+            "pattern": "Phase 1 probes have no decoy detection",
+            "frequency": "8 of 8 probes",
+            "severity": "medium",
+            "tasks_affected": ["phase1-all"],
+            "suggested_fix_type": "add",
+            "suggested_location": "probe definitions + score-probe.py",
+            "suggested_change": "Each Phase 1 probe should list 1-2 plausible decoy skills in the probe definition. Loading a decoy skill (even if the correct one is also loaded) should incur a 0.5 penalty. This tests the model's discrimination ability, not just recall."
+        },
+        {
+            "pattern": "Phase 2 fidelity check for plan skill broken — checks result_preview not arguments",
+            "frequency": "1 of 5 probes",
+            "severity": "high",
+            "tasks_affected": ["P2-04"],
+            "suggested_fix_type": "modify",
+            "suggested_location": "_check_github_fidelity() in score-probe.py",
+            "suggested_change": "result_preview contains the tool's OUTPUT (what a website returned), not the input command. The check should look at tool call arguments: tc['arguments'] parsed as JSON should contain 'gh issue create' or a GitHub API URL. Currently it checks the OUTPUT text which is a meaningless signal."
+        }
+    ],
+    "summary": "All three phases need tightening. Phase 1 is the highest priority (trivially 100%). Phase 2 needs real tool-use verification. Phase 3 needs content-aware chaining evaluation. The scoring script needs both heuristic tightening and bug fixes (github result_preview check is wrong)."
+}

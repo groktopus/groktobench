@@ -1,0 +1,41 @@
+{
+    "epoch": 1,
+    "skill_target": "groktobench (scoring rubric / scoring script + probe definitions)",
+    "rollout_records": [
+        {
+            "task_id": "phase1-probes",
+            "task": "8 skill recognition probes against deepseek-v4-flash",
+            "outcome": "success",
+            "score": "8/8 (100%)",
+            "failure_modes": [],
+            "analysis": "Phase 1 is too easy. Fuzzy matching accepts 'plan' for 'software-development/plan'. No penalty for loading wrong skills first. No decoy detection."
+        },
+        {
+            "task_id": "phase2-probes",
+            "task": "5 skill fidelity probes against deepseek-v4-flash",
+            "outcome": "partial",
+            "score": "12/15 (80%)",
+            "failure_modes": [
+                "Plan fidelity: passed because content contained the word 'step' — no actual .hermes/plans/ file created",
+                "Arxiv fidelity: passed even though model used web_search extensively (still counted as pass)",
+                "Excalidraw fidelity: scored based on 'elements' and 'type' keywords in output text, not valid JSON",
+                "GitHub fidelity: result_preview check is broken — checks tool output text, not the actual command run"
+            ],
+            "analysis": "Fidelity scoring is too generous. Using the wrong tool alongside the right one still counts as 'pass'. Keyword matching over semantic correctness."
+        },
+        {
+            "task_id": "phase3-probes",
+            "task": "2 workflow chaining probes against deepseek-v4-flash",
+            "outcome": "partial",
+            "score": "12/18 (67%)",
+            "failure_modes": [
+                "Chain accuracy: skill order not checked — ANY appearance in ANY order counts as pass",
+                "Context preservation: uses message count as proxy, not actual content continuity",
+                "Completion quality: uses output length as proxy, not relevance to prompt"
+            ],
+            "analysis": "Chaining scoring is generous. All three sub-scores use structural heuristics (counts, lengths) instead of content quality."
+        }
+    ],
+    "baseline_harp_score": 79.0,
+    "diagnosis": "Current scoring is too easy across all phases. A mid-tier model achieves 100% on Phase 1 and generous scores on Phases 2-3. To discriminate between model qualities, all three phases need tighter rubrics, stricter matching, and content-aware evaluation."
+}
