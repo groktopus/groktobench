@@ -1,17 +1,16 @@
-#
 # Groktobench — docker-compose.yml
 #
 # Spins up a clean-room Hermes Agent container with stock skills only.
-# The model under test is configured via environment variables.
+# The model under test and its API key are provided via:
+#   1. An .env file mounted at /opt/data/.env (API key lives here)
+#   2. Model and provider configured by init.sh at boot
 #
 # Usage:
-#   export GROKTOBENCH_API_KEY="sk-..."
-#   export GROKTOBENCH_MODEL="anthropic/claude-sonnet-4"
+#   cp /path/to/your/hermes/.env ./.env   # your real API key file
 #   docker compose -f docker/docker-compose.yml up -d
 #
 # Test:
-#   docker exec groktobench hermes -z "List your available toolsets"
-#
+#   docker exec groktobench-hermes hermes -z "hello" --skills "" --yolo
 
 services:
   hermes:
@@ -21,13 +20,11 @@ services:
     image: groktobench-hermes:latest
     container_name: groktobench-run
     environment:
-      - GROKTOBENCH_API_KEY=${GROKTOBENCH_API_KEY:?error}
-      - GROKTOBENCH_MODEL=${GROKTOBENCH_MODEL:?error}
-      - GROKTOBENCH_BASE_URL=${GROKTOBENCH_BASE_URL:-https://openrouter.ai/api/v1}
       - HERMES_HOME=/opt/data
       - HOME=/opt/data
     volumes:
       - groktobench_data:/opt/data
+      - ./.env:/opt/data/.env:ro   # SCP'd from local machine; Hermes reads this
     stdin_open: true
     tty: true
     command: /opt/hermes/groktobench-init.sh

@@ -61,16 +61,17 @@ tar czf "$DEPLOY_ARCHIVE" \
     .
 echo "      Archive: $DEPLOY_ARCHIVE ($(du -h "$DEPLOY_ARCHIVE" | cut -f1))"
 
-# --- Step 2: Copy repo and .env file to remote host ---
+# --- Step 2: Copy repo .env file to remote host ---
 echo "[2/6] Copying to $DOCKER_HOST..."
 ssh "$DOCKER_HOST" "mkdir -p $REMOTE_DIR $REMOTE_RESULTS_DIR"
 scp "$DEPLOY_ARCHIVE" "${DOCKER_HOST}:${REMOTE_DIR}/"
 ssh "$DOCKER_HOST" "tar xzf ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE) -C $REMOTE_DIR && rm ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE)"
 
-# Transfer .env file separately — SCP preserves bytes exactly, unlike heredocs
-# which can have secrets corrupted by terminal security layers.
-scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/local-hermes-env.txt" 2>/dev/null || {
-    echo "WARNING: Could not SCP .env file. Will try env vars."
+# SCP the .env file — Hermes reads this directly from /opt/data/.env
+# SCP preserves bytes perfectly; no shell-level key corruption.
+scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/.env" || {
+    echo "ERROR: Could not SCP .env file. Deploy aborted."
+    exit 1
 }
 echo "      Deployed to $REMOTE_DIR"
 
@@ -97,39 +98,21 @@ ssh "$DOCKER_HOST" \
        --build-arg BASE_IMAGE=hermes-agent:latest ." 2>&1 | tail -3
 echo "      Groktobench image built"
 
-# --- Step 5: Write env file and run the evaluation ---
+# --- Step 5: Start the evaluation container ---
 echo "[5/6] Running evaluation on $DOCKER_HOST..."
 echo "      Container: $CONTAINER_NAME"
 echo ""
 
-# Write env file on the remote host — READ the key from the SCP'd file
-# instead of using a heredoc, which avoids terminal-level secret redaction.
-ssh "$DOCKER_HOST" "REMOTE_DIR='$REMOTE_DIR'
-# Extract key from SCPd file, or fall back to env var
-KEY=''
-if [ -f \"\${REMOTE_DIR}/local-hermes-env.txt\" ]; then
-    KEY=\$(grep -E \"^DEEPSEEK_API_KEY=\" \"\${REMOTE_DIR}/local-hermes-env.txt\" | head -1 | cut -d= -f2-)
-fi
-if [ -z \"\$KEY\" ]; then
-    KEY=\"\${GROKTOBENCH_API_KEY:-}\"
-fi
-
-# Write .env for docker-compose
-cat > \"\${REMOTE_DIR}/.env\" << ENVEOF
-GROKTOBENCH_API_KEY=\${KEY}
-GROKTOBENCH_MODEL=\${GROKTOBENCH_MODEL:-deepseek-v4-flash}
-GROKTOBENCH_BASE_URL=\${GROKTOBENCH_BASE_URL:-https://api.deepseek.com/v1}
-DEEPSEEK_API_KEY=\${KEY}
-OPENROUTER_API_KEY=\${KEY}
-ENVEOF
-echo \"Env file written with key length: \${#KEY}\"
-"
-
-# Start the container
+# Start the container — model and base_url are passed as env vars,
+# API key comes from the mounted .env file
 ssh "$DOCKER_HOST" \
     "cd $REMOTE_DIR && \
-     docker compose -f docker/docker-compose.yml --env-file .env down --volumes 2>/dev/null; \
-     docker compose -f docker/docker-compose.yml --env-file .env up -d 2>&1" | tail -3
+     GROKTOBENCH_MODEL=\"${GROKTOBENCH_MODEL:-deepseek-v4-flash}\" \
+     GROKTOBENCH_BASE_URL=\"${GROKTOBENCH_BASE_URL:-https://api.deepseek.com/v1}\" \
+     docker compose -f docker/docker-compose.yml down --volumes 2>/dev/null; \
+     GROKTOBENCH_MODEL=\"${GROKTOBENCH_MODEL:-deepseek-v4-flash}\" \
+     GROKTOBENCH_BASE_URL=\"${GROKTOBENCH_BASE_URL:-https://api.deepseek.com/v1}\" \
+     docker compose -f docker/docker-compose.yml up -d 2>&1" | tail -3
 
 # Wait for container to be ready
 echo "      Waiting for container..."
