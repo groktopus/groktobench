@@ -5,20 +5,13 @@
 #
 # IMPORTANT: No custom skills, no custom providers, no personal data.
 
-# --- Model Configuration (defaults — overridden by init.sh) ---
 model:
   provider: openrouter
-  model: "anthropic/claude-sonnet-4-20250514"
+  model: "deepseek-v4-flash"
 
 providers:
   openrouter:
     base_url: "https://openrouter.ai/api/v1"
-    api_key: "placeholder"  # replaced by init.sh
-
-# --- Stock-only skills ---
-# The skills directory bundled with Hermes Agent
-skills:
-  directory: /opt/hermes-agent/skills/
 
 # --- Disable auxiliary models for clean evaluation ---
 auxiliary:
