@@ -67,12 +67,15 @@ ssh "$DOCKER_HOST" "mkdir -p $REMOTE_DIR $REMOTE_RESULTS_DIR"
 scp "$DEPLOY_ARCHIVE" "${DOCKER_HOST}:${REMOTE_DIR}/"
 ssh "$DOCKER_HOST" "tar xzf ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE) -C $REMOTE_DIR && rm ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE)"
 
-# SCP the .env file — Hermes reads this directly from /opt/data/.env
-# SCP preserves bytes perfectly; no shell-level key corruption.
-scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/.env" || {
+# SCP the .env file to the compose file's directory — Hermes reads this
+# from /opt/data/.env via a bind mount. SCP preserves bytes perfectly;
+# no shell-level key corruption.
+scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/docker/.env" || {
     echo "ERROR: Could not SCP .env file. Deploy aborted."
     exit 1
 }
+# Container runs as UID 10000 (hermes user), so the .env needs world-read
+ssh "$DOCKER_HOST" "chmod 644 ${REMOTE_DIR}/docker/.env"
 echo "      Deployed to $REMOTE_DIR"
 
 # --- Step 3: Build Hermes Agent base image on remote host ---
