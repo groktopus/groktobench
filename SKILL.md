@@ -2,7 +2,7 @@
 name: groktobench
 title: "Groktobench — Hermes Agent Readiness Protocol"
 description: "Evaluate a model's suitability as a main Hermes agent. Runs a 3-phase test battery in a clean-room Docker environment, orchestrated via kanban."
-version: 1.0.0
+version: 0.0.1
 author: Groktopus
 license: MIT
 platforms: [linux, macos]
