@@ -1,0 +1,36 @@
+#
+# Groktobench — docker-compose.yml
+#
+# Spins up a clean-room Hermes Agent container with stock skills only.
+# The model under test is configured via environment variables.
+#
+# Usage:
+#   export GROKTOBENCH_API_KEY="sk-..."
+#   export GROKTOBENCH_MODEL="anthropic/claude-sonnet-4"
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# Test:
+#   docker exec groktobench hermes -z "List your available toolsets"
+#
+
+services:
+  hermes:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: groktobench-hermes:latest
+    container_name: groktobench
+    environment:
+      - GROKTOBENCH_API_KEY=${GROKTOBENCH_API_KEY:?error}
+      - GROKTOBENCH_MODEL=${GROKTOBENCH_MODEL:?error}
+      - GROKTOBENCH_BASE_URL=${GROKTOBENCH_BASE_URL:-https://openrouter.ai/api/v1}
+      - HERMES_HOME=/opt/data
+      - HOME=/opt/data
+    volumes:
+      - groktobench_data:/opt/data
+    stdin_open: true
+    tty: true
+    command: /opt/data/init.sh
+
+volumes:
+  groktobench_data:

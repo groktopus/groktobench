@@ -1,0 +1,42 @@
+# Groktobench — Minimal Hermes Agent Configuration
+#
+# This config is overwritten at container startup by init.sh which reads
+# GROKTOBENCH_API_KEY, GROKTOBENCH_MODEL, and GROKTOBENCH_BASE_URL env vars.
+#
+# IMPORTANT: No custom skills, no custom providers, no personal data.
+
+# --- Model Configuration (defaults — overridden by init.sh) ---
+model:
+  provider: openrouter
+  model: "anthropic/claude-sonnet-4-20250514"
+
+providers:
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: "placeholder"  # replaced by init.sh
+
+# --- Stock-only skills ---
+# The skills directory bundled with Hermes Agent
+skills:
+  directory: /opt/hermes-agent/skills/
+
+# --- Disable auxiliary models for clean evaluation ---
+auxiliary:
+  compression: null
+  vision: null
+  approval: null
+  memory: null
+  title_generation: null
+  curator: null
+  goal_judge: null
+
+# --- No custom memory providers ---
+memory:
+  provider: builtin
+  builtin:
+    max_entries: 100
+
+# --- Kanban enabled for orchestration ---
+kanban:
+  enabled: true
+  board: default
