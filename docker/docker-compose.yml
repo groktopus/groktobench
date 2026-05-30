@@ -24,7 +24,7 @@ services:
       - HOME=/opt/data
     volumes:
       - groktobench_data:/opt/data
-      - ./.env:/opt/data/.env:ro   # SCP'd from local machine; Hermes reads this
+      - ../.env:/opt/data/.env:ro   # SCP'd from local machine; Hermes reads this
     stdin_open: true
     tty: true
     command: /opt/hermes/groktobench-init.sh
