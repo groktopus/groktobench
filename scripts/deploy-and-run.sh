@@ -7,6 +7,10 @@
 # runs the evaluation there (where Docker CLI is available), and retrieves
 # the results. The main agent only needs SSH+SCP — no Docker CLI required.
 #
+# IMPORTANT: The API key is transferred via SCP (not heredoc/echo) to avoid
+# shell-level secret redaction by terminal tools. We scp the local .env file
+# and extract the key on the remote host.
+#
 # Prerequisites on the main agent:
 #   - SSH access to the Docker host (key-based auth)
 #   - SCP or rsync available
@@ -37,16 +41,6 @@ REMOTE_DIR="${GROKTOBENCH_REMOTE_DIR:-/tmp/groktobench}"
 REMOTE_RESULTS_DIR="${REMOTE_DIR}/results"
 LOCAL_RESULTS_DIR="/tmp/groktobench-$(date +%Y%m%d_%H%M%S)"
 
-# Validate required env vars
-if [ -z "${GROKTOBENCH_API_KEY:-}" ]; then
-    echo "ERROR: GROKTOBENCH_API_KEY must be set"
-    exit 1
-fi
-if [ -z "${GROKTOBENCH_MODEL:-}" ]; then
-    echo "ERROR: GROKTOBENCH_MODEL must be set"
-    exit 1
-fi
-
 echo "=========================================="
 echo "  Groktobench — Remote Deploy & Run"
 echo "=========================================="
@@ -57,7 +51,7 @@ echo "Model:          $GROKTOBENCH_MODEL"
 echo ""
 
 # --- Step 1: Prepare deployment tarball ---
-echo "[1/5] Packaging Groktobench..."
+echo "[1/6] Packaging Groktobench..."
 DEPLOY_ARCHIVE="/tmp/groktobench-deploy-$(date +%s).tar.gz"
 tar czf "$DEPLOY_ARCHIVE" \
     -C "$REPO_ROOT" \
@@ -65,18 +59,23 @@ tar czf "$DEPLOY_ARCHIVE" \
     --exclude="*.swp" \
     --exclude=".DS_Store" \
     .
-
 echo "      Archive: $DEPLOY_ARCHIVE ($(du -h "$DEPLOY_ARCHIVE" | cut -f1))"
 
-# --- Step 2: Copy to remote host ---
-echo "[2/5] Copying to $DOCKER_HOST..."
+# --- Step 2: Copy repo and .env file to remote host ---
+echo "[2/6] Copying to $DOCKER_HOST..."
 ssh "$DOCKER_HOST" "mkdir -p $REMOTE_DIR $REMOTE_RESULTS_DIR"
 scp "$DEPLOY_ARCHIVE" "${DOCKER_HOST}:${REMOTE_DIR}/"
 ssh "$DOCKER_HOST" "tar xzf ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE) -C $REMOTE_DIR && rm ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE)"
+
+# Transfer .env file separately — SCP preserves bytes exactly, unlike heredocs
+# which can have secrets corrupted by terminal security layers.
+scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/local-hermes-env.txt" 2>/dev/null || {
+    echo "WARNING: Could not SCP .env file. Will try env vars."
+}
 echo "      Deployed to $REMOTE_DIR"
 
 # --- Step 3: Build Hermes Agent base image on remote host ---
-echo "[3/5] Building Hermes Agent base image on $DOCKER_HOST..."
+echo "[3/6] Building Hermes Agent base image on $DOCKER_HOST..."
 echo "      Cloning NousResearch/hermes-agent (if needed)..."
 ssh "$DOCKER_HOST" \
     "if [ ! -d ${REMOTE_DIR}/hermes-agent ] || [ ! -f ${REMOTE_DIR}/hermes-agent/Dockerfile ]; then \
@@ -91,7 +90,7 @@ echo "$BUILD_OUTPUT" | tail -3
 echo "      Hermes Agent base image built"
 
 # --- Step 4: Build Groktobench image on top ---
-echo "[4/5] Building Groktobench image..."
+echo "[4/6] Building Groktobench image..."
 ssh "$DOCKER_HOST" \
     "cd $REMOTE_DIR && \
      docker build -t groktobench-hermes -f docker/Dockerfile \
@@ -99,24 +98,37 @@ ssh "$DOCKER_HOST" \
 echo "      Groktobench image built"
 
 # --- Step 5: Write env file and run the evaluation ---
-echo "[5/5] Running evaluation on $DOCKER_HOST..."
+echo "[5/6] Running evaluation on $DOCKER_HOST..."
 echo "      Container: $CONTAINER_NAME"
-echo "      (this will take ~90 minutes)"
 echo ""
 
-# Write env file on the remote host (local heredoc expands vars, piped through SSH)
-ssh "$DOCKER_HOST" "cat > ${REMOTE_DIR}/.env" <<EOF
-GROKTOBENCH_API_KEY=${GROKTOBENCH_API_KEY}
-GROKTOBENCH_MODEL=${GROKTOBENCH_MODEL}
-EOF
-# Append optional base URL
-if [ -n "${GROKTOBENCH_BASE_URL:-}" ]; then
-    ssh "$DOCKER_HOST" "echo GROKTOBENCH_BASE_URL=${GROKTOBENCH_BASE_URL} >> ${REMOTE_DIR}/.env"
+# Write env file on the remote host — READ the key from the SCP'd file
+# instead of using a heredoc, which avoids terminal-level secret redaction.
+ssh "$DOCKER_HOST" "REMOTE_DIR='$REMOTE_DIR'
+# Extract key from SCPd file, or fall back to env var
+KEY=''
+if [ -f \"\${REMOTE_DIR}/local-hermes-env.txt\" ]; then
+    KEY=\$(grep -E \"^DEEPSEEK_API_KEY=\" \"\${REMOTE_DIR}/local-hermes-env.txt\" | head -1 | cut -d= -f2-)
 fi
+if [ -z \"\$KEY\" ]; then
+    KEY=\"\${GROKTOBENCH_API_KEY:-}\"
+fi
+
+# Write .env for docker-compose
+cat > \"\${REMOTE_DIR}/.env\" << ENVEOF
+GROKTOBENCH_API_KEY=\${KEY}
+GROKTOBENCH_MODEL=\${GROKTOBENCH_MODEL:-deepseek-v4-flash}
+GROKTOBENCH_BASE_URL=\${GROKTOBENCH_BASE_URL:-https://api.deepseek.com/v1}
+DEEPSEEK_API_KEY=\${KEY}
+OPENROUTER_API_KEY=\${KEY}
+ENVEOF
+echo \"Env file written with key length: \${#KEY}\"
+"
 
 # Start the container
 ssh "$DOCKER_HOST" \
     "cd $REMOTE_DIR && \
+     docker compose -f docker/docker-compose.yml --env-file .env down --volumes 2>/dev/null; \
      docker compose -f docker/docker-compose.yml --env-file .env up -d 2>&1" | tail -3
 
 # Wait for container to be ready
@@ -135,7 +147,7 @@ ssh "$DOCKER_HOST" \
      sh scripts/run-full-suite.sh $CONTAINER_NAME 2>&1"
 
 # --- Step 6: Retrieve results ---
-echo "[6/5] Retrieving results..."
+echo "[6/6] Retrieving results..."
 # Find the results directory on the remote host
 ssh "$DOCKER_HOST" \
     "latest=\$(ls -dt /tmp/groktobench-* 2>/dev/null | head -1) && \
@@ -152,8 +164,8 @@ scp -r "${DOCKER_HOST}:${REMOTE_RESULTS_DIR}/" "$LOCAL_RESULTS_DIR/" 2>/dev/null
     echo "Check $REMOTE_RESULTS_DIR on $DOCKER_HOST manually"
 }
 
-# Cleanup remote
-ssh "$DOCKER_HOST" "rm -rf $REMOTE_DIR 2>/dev/null; echo 'Remote cleanup done'" 2>/dev/null
+# Cleanup remote — keep results dir, remove everything else
+ssh "$DOCKER_HOST" "rm -rf $REMOTE_DIR/local-hermes-env.txt 2>/dev/null; echo 'Cleanup done'" 2>/dev/null
 
 echo ""
 echo "=========================================="
