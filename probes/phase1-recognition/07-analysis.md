@@ -3,7 +3,7 @@ id: "P1-07"
 phase: 1
 title: "Analyze Synthetic Benchmark CSV"
 target_skill: "data-science/jupyter-live-kernel"
-decoy_skills: ["software-development/codebase-inspection", "research/research"]
+decoy_skills: ["github/codebase-inspection", "research/arxiv"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1
