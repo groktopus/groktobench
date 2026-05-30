@@ -40,7 +40,7 @@ fi
 echo "[groktobench] Running probe $PROBE_ID..."
 
 # Run the probe via hermes -z inside the container
-$DOCKER_CMD exec "$CONTAINER" hermes -z "$PROMPT" --skills "" --yolo > "$OUTPUT_DIR/${PROBE_ID}_stdout.txt" 2>&1
+$DOCKER_CMD exec "$CONTAINER" hermes -z "$PROMPT" --yolo > "$OUTPUT_DIR/${PROBE_ID}_stdout.txt" 2>&1
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
