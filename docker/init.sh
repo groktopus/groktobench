@@ -7,8 +7,9 @@ set -e
 
 echo "[groktobench] Configuring Hermes for model: ${GROKTOBENCH_MODEL}"
 
-# Write the provider config using env vars
-hermes config set providers.openrouter.api_key "${GROKTOBENCH_API_KEY}"
+# Write API key to .env where Hermes expects it (OPENROUTER_API_KEY)
+# and set model config
+echo "OPENROUTER_API_KEY=${GROKTOBENCH_API_KEY}" >> /opt/data/.env
 hermes config set model.provider openrouter
 hermes config set model.model "${GROKTOBENCH_MODEL}"
 
