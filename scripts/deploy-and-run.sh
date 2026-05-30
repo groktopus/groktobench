@@ -67,15 +67,12 @@ ssh "$DOCKER_HOST" "mkdir -p $REMOTE_DIR $REMOTE_RESULTS_DIR"
 scp "$DEPLOY_ARCHIVE" "${DOCKER_HOST}:${REMOTE_DIR}/"
 ssh "$DOCKER_HOST" "tar xzf ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE) -C $REMOTE_DIR && rm ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE)"
 
-# SCP the .env file to the compose file's directory — Hermes reads this
-# from /opt/data/.env via a bind mount. SCP preserves bytes perfectly;
-# no shell-level key corruption.
-scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/docker/.env" || {
+# SCP the local .env to the remote host (for later docker cp into container)
+# SCP preserves bytes perfectly — no shell-level key corruption.
+scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/env.txt" || {
     echo "ERROR: Could not SCP .env file. Deploy aborted."
     exit 1
 }
-# Container runs as UID 10000 (hermes user), so the .env needs world-read
-ssh "$DOCKER_HOST" "chmod 644 ${REMOTE_DIR}/docker/.env"
 echo "      Deployed to $REMOTE_DIR"
 
 # --- Step 3: Build Hermes Agent base image on remote host ---
@@ -107,7 +104,7 @@ echo "      Container: $CONTAINER_NAME"
 echo ""
 
 # Start the container — model and base_url are passed as env vars,
-# API key comes from the mounted .env file
+# API key comes from the .env file injected via docker cp
 ssh "$DOCKER_HOST" \
     "cd $REMOTE_DIR && \
      GROKTOBENCH_MODEL=\"${GROKTOBENCH_MODEL:-deepseek-v4-flash}\" \
@@ -116,6 +113,14 @@ ssh "$DOCKER_HOST" \
      GROKTOBENCH_MODEL=\"${GROKTOBENCH_MODEL:-deepseek-v4-flash}\" \
      GROKTOBENCH_BASE_URL=\"${GROKTOBENCH_BASE_URL:-https://api.deepseek.com/v1}\" \
      docker compose -f docker/docker-compose.yml up -d 2>&1" | tail -3
+
+# Inject the .env file into the container (docker cp avoids UID mismatch)
+echo "      Injecting .env into container..."
+sleep 3
+ssh "$DOCKER_HOST" \
+    "docker cp ${REMOTE_DIR}/env.txt ${CONTAINER_NAME}:/opt/data/.env && \
+     docker exec ${CONTAINER_NAME} chmod 644 /opt/data/.env && \
+     echo '      API key injected'"
 
 # Wait for container to be ready
 echo "      Waiting for container..."

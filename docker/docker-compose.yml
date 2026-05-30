@@ -10,7 +10,7 @@
 #   docker compose -f docker/docker-compose.yml up -d
 #
 # Test:
-#   docker exec groktobench-hermes hermes -z "hello" --skills "" --yolo
+#   docker exec groktobench-hermes hermes -z "hello" --yolo
 
 services:
   hermes:
@@ -24,7 +24,8 @@ services:
       - HOME=/opt/data
     volumes:
       - groktobench_data:/opt/data
-      - ./.env:/opt/data/.env:ro   # SCP'd from local machine; Hermes reads this
+    # .env is copied into the container via docker cp after startup
+    # (bind mount breaks when host UID doesn't match container UID)
     stdin_open: true
     tty: true
     command: /opt/hermes/groktobench-init.sh
