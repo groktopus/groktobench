@@ -3,6 +3,7 @@ id: "P1-04"
 phase: 1
 title: "File GitHub Issue for Syntherator Crash"
 target_skill: "github/github-issues"
+decoy_skills: ["github/github-code-review", "github/github-repo-management"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1

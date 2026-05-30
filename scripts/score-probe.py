@@ -422,7 +422,18 @@ def _check_obsidian_fidelity(tool_calls, session):
                             if l.strip() == "---":
                                 closing += 1
                         if closing >= 1:
-                            return {"pass": True, "detail": "Vault note with valid YAML frontmatter created"}
+                            # Check file path — must be in vault directory
+                            path = args.get("path", "")
+                            valid_vault_path = (
+                                "/1 - Atoms/" in path or
+                                "/2 - Molecules/" in path or
+                                "/3 - Alloys/" in path or
+                                path.endswith(".md")
+                            )
+                            if not valid_vault_path:
+                                # File written but not to vault — penalize to 2/3
+                                return {"pass": False, "detail": f"Frontmatter valid but file written to non-vault path: {path}"}
+                            return {"pass": True, "detail": "Vault note with valid YAML frontmatter created at proper path"}
             except (json.JSONDecodeError, TypeError):
                 pass
 
@@ -444,6 +455,10 @@ def _check_arxiv_fidelity(tool_calls):
     Using web_search INSTEAD of or IN ADDITION TO arxiv MCP is a fail.
     The skill exists to route to the arxiv MCP tools — using web_search
     means the model didn't follow the skill's instructions.
+
+    Also checks that the model performed a SEARCH (not just retrieved
+    abstracts for already-known papers). mcp_arxiv_search_papers or
+    mcp_arxiv_watch_topic is required — get_abstract alone is not enough.
     """
     has_arxiv = any(
         "mcp_arxiv" in tc["name"].lower() or "arxiv" in tc["name"].lower()
@@ -452,13 +467,25 @@ def _check_arxiv_fidelity(tool_calls):
     has_web_search = any(
         "web_search" in tc["name"].lower() for tc in tool_calls
     )
+    has_search = any(
+        "search" in tc["name"].lower() and "arxiv" in tc["name"].lower()
+        for tc in tool_calls
+    )
+    has_only_abstract = has_arxiv and not has_search and any(
+        "get_abstract" in tc["name"].lower() or "read_paper" in tc["name"].lower()
+        for tc in tool_calls
+    )
 
-    if has_arxiv and not has_web_search:
-        return {"pass": True, "detail": "Used arxiv MCP tool, no fallback to web_search"}
+    if has_arxiv and not has_web_search and has_search:
+        return {"pass": True, "detail": "Used arxiv MCP search tool, no fallback to web_search"}
     elif has_arxiv and has_web_search:
         return {"pass": False, "detail": "Used arxiv MCP tool but ALSO fell back to web_search — should have used only arxiv tools"}
+    elif has_only_abstract:
+        return {"pass": False, "detail": "Used arxiv MCP to read papers but never called search — must demonstrate discovery"}
     elif has_web_search:
         return {"pass": False, "detail": "Used web_search instead of arxiv MCP tool"}
+    elif has_arxiv:
+        return {"pass": True, "detail": "Used arxiv MCP tools (search detection inconclusive)"}
     else:
         return {"pass": False, "detail": "Did not use arxiv MCP tool"}
 

@@ -3,6 +3,7 @@ id: "P1-01"
 phase: 1
 title: "Research Sentiment Analysis Models"
 target_skill: "research/arxiv"
+decoy_skills: ["blogwatcher", "creative/p5js"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1

@@ -1,0 +1,35 @@
+{
+    "epoch": 2,
+    "rollout_count": 1,
+    "baseline_harp": "unknown (needs re-run after Epoch 1 scoring changes)",
+    "failure_patterns": [
+        {
+            "pattern": "Phase 1 tolerates lucky guesses — no decoy skills to test discrimination",
+            "frequency": "8 of 8 Phase 1 probes",
+            "severity": "high",
+            "tasks_affected": ["phase1-all"],
+            "suggested_fix_type": "add",
+            "suggested_location": "probe frontmatter + score_phase1() decoy detection",
+            "suggested_change": "Add plausible decoy skills to each Phase 1 probe's frontmatter. The scoring already supports decoy_skills — add them to probe definitions. Each decoy should be semantically close to the target but wrong (e.g., p5js near arxiv, vault-navigation near obsidian)."
+        },
+        {
+            "pattern": "Phase 2 obsidian fidelity checks content but not file extension or location",
+            "frequency": "1 of 5 Phase 2 probes",
+            "severity": "medium",
+            "tasks_affected": ["P2-02"],
+            "suggested_fix_type": "modify",
+            "suggested_location": "_check_obsidian_fidelity()",
+            "suggested_change": "Check that the written file path ends with .md and contains /1 - Atoms/ or /2 - Molecules/ (the vault structure). Content-only validation allows writing to /tmp/something.md with correct frontmatter."
+        },
+        {
+            "pattern": "Phase 3 chaining probes are shallow — 3-skill chains only",
+            "frequency": "2 of 2 Phase 3 probes",
+            "severity": "low",
+            "tasks_affected": ["P3-A", "P3-B"],
+            "suggested_fix_type": "add",
+            "suggested_location": "new probes or extend existing chains",
+            "suggested_change": "Add a 5-skill chain probe for Phase 3 (research → plan → implement → test → document). Current 3-skill chains don't stress context preservation enough."
+        }
+    ],
+    "summary": "Epoch 1 tightened the scoring rubric. Epoch 2 must make the PROBES themselves harder. Decoy skills are the highest-leverage change — they test discrimination, not just recall. Phase 2 file path validation and deeper chains are secondary."
+}

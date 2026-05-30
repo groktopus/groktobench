@@ -3,6 +3,7 @@ id: "P1-02"
 phase: 1
 title: "Take Notes on Synthetic Data Generators"
 target_skill: "note-taking/obsidian"
+decoy_skills: ["note-taking/obsidian-vault-navigation", "productivity/notion"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1

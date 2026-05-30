@@ -3,6 +3,7 @@ id: "P1-06"
 phase: 1
 title: "Configure Hermes with Custom Provider"
 target_skill: "autonomous-ai-agents/hermes-agent"
+decoy_skills: ["software-development/hermes-s6-container-supervision", "software-development/hermes-agent-tool-authoring"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1

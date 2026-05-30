@@ -3,6 +3,7 @@ id: "P1-08"
 phase: 1
 title: "Spike Markov Chain for Syntherator"
 target_skill: "software-development/spike"
+decoy_skills: ["software-development/writing-plans", "software-development/test-driven-development"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1

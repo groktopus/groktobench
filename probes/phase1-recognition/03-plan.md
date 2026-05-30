@@ -3,6 +3,7 @@ id: "P1-03"
 phase: 1
 title: "Plan Syntherator Implementation"
 target_skill: "software-development/plan"
+decoy_skills: ["software-development/writing-plans", "software-development/subagent-driven-development"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1

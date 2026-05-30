@@ -1,0 +1,78 @@
+{
+    "epoch": 2,
+    "reflection_source": ".skillopt/epoch-2/reflection.json",
+    "edit_budget": 4,
+    "proposals": [
+        {
+            "id": "edit-1",
+            "type": "add",
+            "location": "probe frontmatter — all 8 Phase 1 probes",
+            "rationale": "Phase 1 tests skill RECOGNITION but not discrimination. The scoring infrastructure already supports decoy_skills — but no probes define any. Without decoys, a model that guesses 'oh, arxiv sounds right' gets the same score as a model that systematically eliminated 'blogwatcher' and 'p5js' before choosing 'arxiv'. Adding decoys makes Phase 1 test real discrimination.",
+            "edits": [
+                {
+                    "probe": "probes/phase1-recognition/01-research.md",
+                    "add_frontmatter": "decoy_skills: [\"blogwatcher\", \"creative/p5js\"]",
+                    "rationale": "Blogwatcher monitors feeds (close to research but wrong — it's for RSS monitoring, not paper search). p5js is creative, not research."
+                },
+                {
+                    "probe": "probes/phase1-recognition/02-notes.md",
+                    "add_frontmatter": "decoy_skills: [\"note-taking/obsidian-vault-navigation\", \"productivity/notion\"]",
+                    "rationale": "Vault navigation is obsidian-adjacent but reads/explores, doesn't create. Notion is a different tool entirely."
+                },
+                {
+                    "probe": "probes/phase1-recognition/03-plan.md",
+                    "add_frontmatter": "decoy_skills: [\"software-development/writing-plans\", \"software-development/subagent-driven-development\"]",
+                    "rationale": "writing-plans produces plans but describes what to do — the 'plan' skill produces the plan itself (read-only, writes to .hermes/plans/). Subagent-driven-development also plans but delegates execution."
+                },
+                {
+                    "probe": "probes/phase1-recognition/04-issues.md",
+                    "add_frontmatter": "decoy_skills: [\"software-development/github-code-review\", \"software-development/github-repo-management\"]",
+                    "rationale": "Both are GitHub-adjacent. Code review inspects PRs. Repo management clones/creates repos. Neither files issues."
+                },
+                {
+                    "probe": "probes/phase1-recognition/05-creative.md",
+                    "add_frontmatter": "decoy_skills: [\"creative/architecture-diagram\", \"creative/p5js\"]",
+                    "rationale": "Architecture diagram creates visual content (close to creative). p5js generates visual art. But neither is an ideation/generation framework."
+                },
+                {
+                    "probe": "probes/phase1-recognition/06-self-knowledge.md",
+                    "add_frontmatter": "decoy_skills: [\"software-development/hermes-s6-container-supervision\", \"software-development/hermes-agent-tool-authoring\"]",
+                    "rationale": "Both are hermes-adjacent. Container supervision is about the runtime. Tool authoring is about building new tools. Neither is about configuration/usage of existing Hermes features."
+                },
+                {
+                    "probe": "probes/phase1-recognition/07-analysis.md",
+                    "add_frontmatter": "decoy_skills: [\"software-development/codebase-inspection\", \"research/research\"]",
+                    "rationale": "Codebase inspection counts lines/languages — looks analytical but is surface-level. Research is broad but generic."
+                },
+                {
+                    "probe": "probes/phase1-recognition/08-spike.md",
+                    "add_frontmatter": "decoy_skills: [\"software-development/writing-plans\", \"software-development/test-driven-development\"]",
+                    "rationale": "Writing plans is about planning before building — similar to spike's exploration intent but produces documents rather than throwaway code. TDD is about testing, not exploration."
+                }
+            ]
+        },
+        {
+            "id": "edit-2",
+            "type": "modify",
+            "location": "_check_obsidian_fidelity() in score-probe.py",
+            "rationale": "The current obsidian check validates frontmatter content and structure but doesn't verify the file was written to the vault path. A model that writes correct frontmatter to /tmp/foo.md should not get full credit. The obsidian skill creates notes in the vault directory structure (1 - Atoms/, 2 - Molecules/).",
+            "old_text": "                if content.startswith(\"---\"):\n                    lines = content.split(\"\\n\")\n                    has_title = any(l.lower().startswith(\"title:\") for l in lines)\n                    has_created = any(l.lower().startswith(\"created:\") for l in lines)\n                    has_topics = any(l.lower().startswith(\"topics:\") for l in lines)\n                    if has_title and has_created:\n                        # Check the frontmatter closes\n                        closing = 0\n                        for l in lines[1:]:\n                            if l.strip() == \"---\":\n                                closing += 1\n                        if closing >= 1:\n                            return {\"pass\": True, \"detail\": \"Vault note with valid YAML frontmatter created\"}",
+            "new_text": "                if content.startswith(\"---\"):\n                    lines = content.split(\"\\n\")\n                    has_title = any(l.lower().startswith(\"title:\") for l in lines)\n                    has_created = any(l.lower().startswith(\"created:\") for l in lines)\n                    has_topics = any(l.lower().startswith(\"topics:\") for l in lines)\n                    if has_title and has_created:\n                        # Check the frontmatter closes\n                        closing = 0\n                        for l in lines[1:]:\n                            if l.strip() == \"---\":\n                                closing += 1\n                        if closing >= 1:\n                            # Check file path — must be in vault directory\n                            path = args.get(\"path\", \"\")\n                            valid_vault_path = (\n                                \"/1 - Atoms/\" in path or\n                                \"/2 - Molecules/\" in path or\n                                \"/3 - Alloys/\" in path or\n                                path.endswith(\".md\")\n                            )\n                            if not valid_vault_path:\n                                # File written but not to vault — penalize to 2/3\n                                return {\"pass\": False, \"detail\": f\"Frontmatter valid but file written to non-vault path: {path}\"}\n                            return {\"pass\": True, \"detail\": \"Vault note with valid YAML frontmatter created at proper path\"}"
+        },
+        {
+            "id": "edit-3",
+            "type": "add",
+            "location": "new probe — probes/phase3-chaining/workflow-c-research-implement-document-deploy.md",
+            "rationale": "Current Phase 3 probes use 3-skill chains (research → obsidian → github). This is the minimum bar. A 5-skill chain (research → plan → implement → test → deploy) stresses context preservation across a longer dependency chain. Models that can maintain coherence across 5 steps are meaningfully better at workflow chaining than models that can only do 3.",
+            "new_text": "---\nid: \"P3-C\"\nphase: 3\ntitle: \"Full-stack feature workflow\"\ntarget_skill: \"research/arxiv, software-development/plan, software-development/subagent-driven-development, mlops/evaluation, devops/kanban-orchestrator\"\nskill_chain: \"research/arxiv, software-development/plan, software-development/subagent-driven-development, mlops/evaluation, software-development/codebase-inspection\"\ndifficulty: 3\ndescription: \"Research a technique, plan implementation, build it, evaluate, and inspect the result — a 5-step chain that stresses context preservation across diverse skill domains.\"\n---\n\n## Prompt\n\nResearch arXiv for recent papers on embedding compression techniques (like Matryoshka Representation Learning or adaptive dimensionality reduction). Based on the findings, create an implementation plan. Then implement a minimal Python prototype that demonstrates the approach on a small embedding dataset. Evaluate the quality using cosine similarity comparison between compressed and uncompressed embeddings. Finally, inspect your codebase to report file structure and key metrics.\n\nStart with research, then plan, then implement, then evaluate, then inspect. Use the appropriate skill for each step and carry findings forward between steps."
+        },
+        {
+            "id": "edit-4",
+            "type": "modify",
+            "location": "_check_arxiv_fidelity() and _check_plan_fidelity() in score-probe.py",
+            "rationale": "Two edge cases from Epoch 1 analysis: (1) arxiv check should also detect when the model uses the mcp_arxiv_get_abstract tool but never calls search — that's a partial pass at best; (2) plan check should verify the plan file has substantive content (not just a stub), mirroring the obsidian content validation.",
+            "old_text": "def _check_arxiv_fidelity(tool_calls):\n    \"\"\"Arxiv fidelity: must use arxiv MCP tool (mcp_arxiv_*).\n    Using web_search INSTEAD of or IN ADDITION TO arxiv MCP is a fail.\n    The skill exists to route to the arxiv MCP tools — using web_search\n    means the model didn't follow the skill's instructions.\n    \"\"\"\n    has_arxiv = any(\n        \"mcp_arxiv\" in tc[\"name\"].lower() or \"arxiv\" in tc[\"name\"].lower()\n        for tc in tool_calls\n    )\n    has_web_search = any(\n        \"web_search\" in tc[\"name\"].lower() for tc in tool_calls\n    )\n\n    if has_arxiv and not has_web_search:\n        return {\"pass\": True, \"detail\": \"Used arxiv MCP tool, no fallback to web_search\"}\n    elif has_arxiv and has_web_search:\n        return {\"pass\": False, \"detail\": \"Used arxiv MCP tool but ALSO fell back to web_search — should have used only arxiv tools\"}\n    elif has_web_search:\n        return {\"pass\": False, \"detail\": \"Used web_search instead of arxiv MCP tool\"}\n    else:\n        return {\"pass\": False, \"detail\": \"Did not use arxiv MCP tool\"}",
+            "new_text": "def _check_arxiv_fidelity(tool_calls):\n    \"\"\"Arxiv fidelity: must use arxiv MCP tool (mcp_arxiv_*).\n    Using web_search INSTEAD of or IN ADDITION TO arxiv MCP is a fail.\n    The skill exists to route to the arxiv MCP tools — using web_search\n    means the model didn't follow the skill's instructions.\n\n    Also checks that the model performed a SEARCH (not just retrieved\n    abstracts for already-known papers). mcp_arxiv_search_papers or\n    mcp_arxiv_watch_topic is required — get_abstract alone is not enough.\n    \"\"\"\n    has_arxiv = any(\n        \"mcp_arxiv\" in tc[\"name\"].lower() or \"arxiv\" in tc[\"name\"].lower()\n        for tc in tool_calls\n    )\n    has_web_search = any(\n        \"web_search\" in tc[\"name\"].lower() for tc in tool_calls\n    )\n    has_search = any(\n        \"search\" in tc[\"name\"].lower() and \"arxiv\" in tc[\"name\"].lower()\n        for tc in tool_calls\n    )\n    has_only_abstract = has_arxiv and not has_search and any(\n        \"get_abstract\" in tc[\"name\"].lower() or \"read_paper\" in tc[\"name\"].lower()\n        for tc in tool_calls\n    )\n\n    if has_arxiv and not has_web_search and has_search:\n        return {\"pass\": True, \"detail\": \"Used arxiv MCP search tool, no fallback to web_search\"}\n    elif has_arxiv and has_web_search:\n        return {\"pass\": False, \"detail\": \"Used arxiv MCP tool but ALSO fell back to web_search — should have used only arxiv tools\"}\n    elif has_only_abstract:\n        return {\"pass\": False, \"detail\": \"Used arxiv MCP to read papers but never called search — must demonstrate discovery\"}\n    elif has_web_search:\n        return {\"pass\": False, \"detail\": \"Used web_search instead of arxiv MCP tool\"}\n    elif has_arxiv:\n        return {\"pass\": True, \"detail\": \"Used arxiv MCP tools (search detection inconclusive)\"}\n    else:\n        return {\"pass\": False, \"detail\": \"Did not use arxiv MCP tool\"}"
+        }
+    ]
+}

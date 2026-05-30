@@ -3,6 +3,7 @@ id: "P1-05"
 phase: 1
 title: "Diagram Syntherator Architecture"
 target_skill: "creative/excalidraw"
+decoy_skills: ["creative/architecture-diagram", "creative/p5js"]
 scenario_type: "synthetic"
 scoring:
   max_points: 1
