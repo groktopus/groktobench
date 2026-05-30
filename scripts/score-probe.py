@@ -355,8 +355,8 @@ def check_skill_fidelity(probe_id, skill_name, tool_calls, session):
     """
     if probe_id == "P2-01":  # plan skill — must create .hermes/plans/ file
         return _check_plan_fidelity(tool_calls, session)
-    elif probe_id == "P2-02":  # obsidian — must create vault note with frontmatter
-        return _check_obsidian_fidelity(tool_calls, session)
+    elif probe_id == "P2-02":  # llm-wiki — must create interlinked KB
+        return _check_llm_wiki_fidelity(tool_calls, session)
     elif probe_id == "P2-03":  # arxiv — must use MCP tool
         return _check_arxiv_fidelity(tool_calls)
     elif probe_id == "P2-04":  # github — must create actual issue
@@ -399,44 +399,48 @@ def _check_plan_fidelity(tool_calls, session):
     return {"pass": False, "detail": "No plan file written. Description without file creation is not sufficient."}
 
 
-def _check_obsidian_fidelity(tool_calls, session):
-    """Obsidian fidelity: must create a vault note with YAML frontmatter.
-    Checks tool call arguments for write_file with frontmatter content,
-    not just output text that contains '---'.
+def _check_llm_wiki_fidelity(tool_calls, session):
+    """LLM Wiki fidelity: must create interlinked markdown knowledge base files.
+
+    Checks that the model created multiple markdown files with wiki-style
+    cross-references ([[links]]), not just a single flat note.
     """
-    # Check tool call ARGUMENTS for write_file containing YAML frontmatter
+    # Check tool call ARGUMENTS for write_file creating markdown files
+    md_files_created = []
+    has_wiki_links = False
     for tc in tool_calls:
         if tc["name"] == "write_file":
             try:
                 args = json.loads(tc["arguments"])
+                path = args.get("path", "")
                 content = args.get("content", "")
-                if content.startswith("---"):
-                    lines = content.split("\n")
-                    has_title = any(l.lower().startswith("title:") for l in lines)
-                    has_created = any(l.lower().startswith("created:") for l in lines)
-                    has_topics = any(l.lower().startswith("topics:") for l in lines)
-                    if has_title and has_created:
-                        # Check the frontmatter closes
-                        closing = 0
-                        for l in lines[1:]:
-                            if l.strip() == "---":
-                                closing += 1
-                        if closing >= 1:
-                            return {"pass": True, "detail": "Vault note with valid YAML frontmatter created"}
+                if path.endswith(".md"):
+                    md_files_created.append(path)
+                    # Check for wiki-style links in content
+                    if "[[" in content and "]]" in content:
+                        has_wiki_links = True
             except (json.JSONDecodeError, TypeError):
                 pass
 
-    # Fallback: check final response for frontmatter content (weaker signal)
+    # Check final response for wiki link patterns
     final_msg = ""
     for msg in reversed(session.get("messages", [])):
         if msg.get("role") == "assistant" and not msg.get("tool_calls"):
             final_msg = msg.get("content", "")
             break
 
-    if "---" in final_msg and "title:" in final_msg.lower():
-        return {"pass": False, "detail": "Frontmatter shown in output but not written to a file — must use write_file"}
+    if has_wiki_links and len(md_files_created) >= 2:
+        return {"pass": True, "detail": f"Created {len(md_files_created)} interlinked wiki pages"}
+    elif len(md_files_created) >= 1 and has_wiki_links:
+        return {"pass": True, "detail": "Created wiki page with cross-references"}
+    elif len(md_files_created) >= 2:
+        return {"pass": False, "detail": f"Created {len(md_files_created)} markdown files but no wiki links"}
+    elif len(md_files_created) >= 1:
+        return {"pass": False, "detail": "Created a single markdown file — llm-wiki expects an interlinked knowledge base"}
+    elif has_wiki_links:
+        return {"pass": False, "detail": "Wiki links found in output but no files written to disk"}
 
-    return {"pass": False, "detail": "No vault note with proper frontmatter found"}
+    return {"pass": False, "detail": "No knowledge base files created. Must use write_file to create .md pages."}
 
 
 def _check_arxiv_fidelity(tool_calls):
