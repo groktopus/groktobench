@@ -118,8 +118,8 @@ ssh "$DOCKER_HOST" \
 echo "      Injecting .env into container..."
 sleep 3
 ssh "$DOCKER_HOST" \
-    "docker cp ${REMOTE_DIR}/env.txt ${CONTAINER_NAME}:/opt/data/.env && \
-     docker exec ${CONTAINER_NAME} chmod 644 /opt/data/.env && \
+    "docker cp ${REMOTE_DIR}/env.txt ${CONTAINER_NAME}:/opt/hermes/.env && \
+     docker exec ${CONTAINER_NAME} chmod 644 /opt/hermes/.env && \
      echo '      API key injected'"
 
 # Wait for container to be ready
