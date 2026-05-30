@@ -19,7 +19,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     image: groktobench-hermes:latest
-    container_name: groktobench
+    container_name: groktobench-run
     environment:
       - GROKTOBENCH_API_KEY=${GROKTOBENCH_API_KEY:?error}
       - GROKTOBENCH_MODEL=${GROKTOBENCH_MODEL:?error}
