@@ -21,7 +21,7 @@
 #   - Python 3 (for the scoring script)
 #
 # Examples:
-#   ./deploy-and-run.sh gpuslut01 groktobench-run
+#   ./deploy-and-run.sh user@docker-host groktobench-run
 #   ./deploy-and-run.sh user@buildbox.local groktobench
 #   ./deploy-and-run.sh 10.0.1.50 hermes-eval
 #
@@ -30,6 +30,7 @@
 #   GROKTOBENCH_MODEL      — Model name (required)
 #   GROKTOBENCH_BASE_URL   — API base URL (optional)
 #   GROKTOBENCH_REMOTE_DIR — Remote working directory (default: /tmp/groktobench)
+#   GROKTOBENCH_ENV_FILE   — Path to your Hermes .env file (default: ~/.hermes/.env)
 
 set -u
 
@@ -69,7 +70,9 @@ ssh "$DOCKER_HOST" "tar xzf ${REMOTE_DIR}/$(basename $DEPLOY_ARCHIVE) -C $REMOTE
 
 # SCP the local .env to the remote host (for later docker cp into container)
 # SCP preserves bytes perfectly — no shell-level key corruption.
-scp /Users/magnus/.hermes/.env "${DOCKER_HOST}:${REMOTE_DIR}/env.txt" || {
+# Set GROKTOBENCH_ENV_FILE to the path of your Hermes .env file
+ENV_FILE="${GROKTOBENCH_ENV_FILE:-$HOME/.hermes/.env}"
+scp "$ENV_FILE" "${DOCKER_HOST}:${REMOTE_DIR}/env.txt" || {
     echo "ERROR: Could not SCP .env file. Deploy aborted."
     exit 1
 }
