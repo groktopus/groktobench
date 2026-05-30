@@ -21,8 +21,8 @@ RUN rm -rf /opt/data/skills/* 2>/dev/null || true
 
 # Copy our minimal config template and init script
 COPY docker/config.yaml /opt/data/config.yaml
-COPY docker/init.sh /opt/data/init.sh
-RUN chmod +x /opt/data/init.sh
+COPY docker/init.sh /opt/hermes/groktobench-init.sh
+RUN chmod +x /opt/hermes/groktobench-init.sh
 
 # Install dependencies needed for stock Hermes skills
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \

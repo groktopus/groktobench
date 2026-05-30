@@ -30,7 +30,7 @@ services:
       - groktobench_data:/opt/data
     stdin_open: true
     tty: true
-    command: /opt/data/init.sh
+    command: /opt/hermes/groktobench-init.sh
 
 volumes:
   groktobench_data:
