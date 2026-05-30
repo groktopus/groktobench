@@ -33,24 +33,5 @@ kanban:
   enabled: false
 YAMLEOF
 
-# Trim skills to only what probes need — s6-overlay syncs 90+ bundled
-# skills at boot, which overwhelms hermes -z mode. Keep only the skills
-# that Phase 1-3 probes test.
-KEEP_SKILL_DIRS="research note-taking github software-development creative"
-echo "[groktobench] Keeping skill categories: ${KEEP_SKILL_DIRS}"
-for skill_dir in /opt/data/skills/*/; do
-    name=$(basename "$skill_dir")
-    keep=0
-    for keep_item in $KEEP_SKILL_DIRS; do
-        if [ "$name" = "$keep_item" ]; then
-            keep=1
-            break
-        fi
-    done
-    if [ "$keep" -eq 0 ]; then
-        rm -rf "$skill_dir" 2>/dev/null || true
-    fi
-done
-
-echo "[groktobench] Ready for probes. Skills: $(ls /opt/data/skills/ 2>/dev/null | wc -l)"
+echo "[groktobench] Skills available: $(ls /opt/data/skills/ 2>/dev/null | wc -l)"
 tail -f /dev/null
